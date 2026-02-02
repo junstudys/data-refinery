@@ -2,6 +2,8 @@ pipeline:
   name: DataRefinery
   version: 2.0
   manual_continue_after_repair: true
+  manual_continue_after_convert: true
+  manual_continue_after_dict_edit: true
 
 paths:
   excel_folder: excel_folder

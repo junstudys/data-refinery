@@ -7,7 +7,11 @@ from core.pipeline import DataPipeline
 
 def test_pipeline_reads_content_extraction_config(tmp_path: Path):
     config = {
-        "pipeline": {"manual_continue_after_repair": True},
+        "pipeline": {
+            "manual_continue_after_repair": True,
+            "manual_continue_after_convert": True,
+            "manual_continue_after_dict_edit": True,
+        },
         "paths": {
             "excel_folder": "excel_folder",
             "csv_results_folder": "csv_results_folder",

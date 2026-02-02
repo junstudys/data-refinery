@@ -38,6 +38,15 @@ class DataPipeline:
         self.manual_continue_after_repair = bool(
             self.config.get("pipeline", {}).get("manual_continue_after_repair", False)
         )
+        self.manual_continue_after_convert = bool(
+            self.config.get("pipeline", {}).get("manual_continue_after_convert", False)
+        )
+        self.manual_continue_after_dict_edit = bool(
+            self.config.get("pipeline", {}).get(
+                "manual_continue_after_dict_edit", False
+            )
+        )
+        self.stop_pipeline = False
         self.steps = self._init_steps()
 
     def _load_config(self, config_path: str) -> dict:
@@ -82,6 +91,9 @@ class DataPipeline:
             apply_dir_policies(paths, dir_policies)
         end = to_step or len(self.steps)
         for i, step in enumerate(self.steps[from_step:end], start=from_step):
+            if self.stop_pipeline:
+                self.logger.warning("流程已停止，跳过后续步骤")
+                break
             if (
                 step.name != "xlsx_to_csv"
                 and allow_flatten_on_success_only
@@ -90,6 +102,7 @@ class DataPipeline:
                 with open(failed_list_path, "r", encoding="utf-8") as f:
                     if len(f.readlines()) > 1:
                         self.logger.warning("存在转换失败文件，跳过后续所有步骤")
+                        self.stop_pipeline = True
                         break
             self.logger.info(f"[{i + 1}/{len(self.steps)}] {step.description}...")
             try:
@@ -177,6 +190,7 @@ class DataPipeline:
                             "remove_failed_output_folders", True
                         ):
                             remove_failed_output_folders(results_folder, retry_failed)
+                        self.stop_pipeline = True
                     else:
                         if self.manual_continue_after_repair:
                             user_input = (
@@ -186,6 +200,17 @@ class DataPipeline:
                             )
                             if user_input not in ["y", "yes"]:
                                 self.logger.warning("用户取消后续步骤")
+                                self.stop_pipeline = True
+                                return
+                        if self.manual_continue_after_convert:
+                            user_input = (
+                                input("转换完成，是否继续执行后续步骤？(y/n): ")
+                                .strip()
+                                .lower()
+                            )
+                            if user_input not in ["y", "yes"]:
+                                self.logger.warning("用户取消后续步骤")
+                                self.stop_pipeline = True
                                 return
             return
 
@@ -263,6 +288,15 @@ class DataPipeline:
         input_file = str(Path(paths.get("mid_files", "mid_files")) / "field_info.csv")
         output_file = str(Path(paths.get("mid_files", "mid_files")) / "agg.csv")
         array_agg_optimized(input_file, "Field Names", "File Name", output_file)
+        if self.manual_continue_after_dict_edit:
+            user_input = (
+                input("字段聚合完成，请编辑 dict_zh.xlsx 后继续 (y/n): ")
+                .strip()
+                .lower()
+            )
+            if user_input not in ["y", "yes"]:
+                self.logger.warning("用户取消后续步骤")
+                self.stop_pipeline = True
 
     def _step_field_replace(self) -> None:
         replace_fields(

@@ -16,8 +16,8 @@ DataRefinery 用于批量处理结构不一致、质量参差的 Excel/CSV 数�
 
 ### 1. 进入仓库
 ```bash
-git clone <your-repo-url>
-cd <your-repo>
+git clone https://github.com/junstudys/data-refinery
+cd data-refinery
 ```
 
 ### 2. 一键运行全流程

@@ -29,4 +29,11 @@ htmlcov/
 *.xls
 *.csv
 *.json
-excel_folder/
+mid_files/
+csv_results_folder/
+excel_preprocessed/
+Result_files/
+logs/
+fixs/
+
+
