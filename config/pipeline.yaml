@@ -1,0 +1,111 @@
+pipeline:
+  name: DataRefinery
+  version: 2.0
+  manual_continue_after_repair: true
+
+paths:
+  excel_folder: excel_folder
+  excel_preprocess_folder: excel_preprocessed
+  csv_results_folder: csv_results_folder
+  mid_files: mid_files
+  result_files: Result_files
+  tmp_find_header_row: mid_files/tmp_find_header_row
+  tmp_field_replace: mid_files/tmp_field_replace
+
+dir_policies:
+  excel_folder: false
+  excel_preprocess_folder: true
+  csv_results_folder: true
+  mid_files: true
+  result_files: true
+  tmp_find_header_row: true
+  tmp_field_replace: true
+
+field_detection:
+  keywords:
+    - 单号
+    - 运单号
+    - 运单编号
+    - 快递单号
+    - 工作单号
+    - mailno
+    - 原订单快递单号
+    - 物流单号
+    - 物流编号
+    - ship_id
+  max_rows_to_check: 4
+  min_header_columns: 2
+  max_standalone_keyword_length: 20
+  default_first_row_when_not_found: false
+
+order_clean:
+  output_mode: replace
+  fields:
+    - name: 运单号
+      aliases:
+        - 运单号
+        - 单号
+        - 运单编号
+        - 快递单号
+        - 工作单号
+        - mailno
+        - 原订单快递单号
+        - 物流单号
+        - 物流编号
+        - ship_id
+      min_length: 12
+      max_length: 18
+      allow_chinese: false
+      allowed_pattern: "^[A-Za-z0-9]+$"
+
+encoding:
+  default: utf-8
+  fallback:
+    - utf-8
+    - utf-8-sig
+    - gbk
+    - gb18030
+    - gb2312
+    - latin1
+    - iso-8859-1
+
+performance:
+  max_workers: 4
+  chunk_size: 10000
+
+xlsx_to_csv:
+  log_detail: true
+  failed_list_path: mid_files/failed_xlsx.csv
+  retry_mode: all
+  allow_flatten_on_success_only: true
+  failure_markers:
+    - "#N/A"
+    - "#NAME?"
+    - "#VALUE!"
+    - "#REF!"
+    - "#DIV/0!"
+  failure_scan_columns: []
+
+excel_preprocess:
+  enabled: true
+  fallback_on_failed: true
+  in_place: false
+  audit_log_path: logs/excel_error_audit.csv
+  error_handling:
+    mode: keep
+  formula_text:
+    preserve: true
+    preserve_if_contains_chinese: true
+    preserve_if_no_parentheses: false
+
+cleanup_on_failed:
+  enabled: true
+  remove_failed_output_folders: true
+
+content_extraction:
+  columns: []
+  merge: true
+
+logging:
+  level: INFO
+  file: logs/pipeline.log
