@@ -120,7 +120,7 @@ date_cleaning:
   # 清洗选项
   options:
     # 无法解析时的处理方式：keep_original（保留原值）, set_null（设为空）, drop_row（删除行）
-    on_parse_failure: drop_row
+    on_parse_failure: set_null
     # 是否删除 .0 后缀
     remove_decimal_zero: true
     # 是否输出清洗日志

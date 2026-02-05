@@ -57,7 +57,7 @@ order_clean:
         - 物流单号
         - 物流编号
         - ship_id
-      min_length: 12
+      min_length: 6
       max_length: 18
       allow_chinese: false
       allowed_pattern: "^[A-Za-z0-9]+$"
