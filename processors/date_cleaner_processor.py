@@ -76,23 +76,42 @@ class DateCleaningProcessor:
         date_fields_cfg = self.date_cleaning_cfg.get("date_fields", [])
         field_configs = [DateFieldConfig(cfg) for cfg in date_fields_cfg]
 
+        on_parse_failure = self.options.get("on_parse_failure", "keep_original")
+
         for field_cfg in field_configs:
             resolved_column = self._resolve_date_column(df, field_cfg)
             if not resolved_column:
                 continue
 
+            # 保存原始值，用于 keep_original 模式
+            original_values = df[resolved_column].copy()
+
             # 执行日期清洗
             cleaned = clean_date_vectorized_v2(df[resolved_column], self.parse_formats)
 
-            # 应用清洗结果
-            output_mode = self.options.get("output_mode", "replace")
-            if output_mode == "add_column":
-                df[f"{resolved_column}_cleaned"] = cleaned
-            else:
+            # 处理解析失败的行
+            # NaN 值表示解析失败
+            parse_mask = pd.notna(cleaned)
+
+            if on_parse_failure == "drop_row":
+                # 删除解析失败的行
+                df = df[parse_mask].copy()
+                # 只保留清洗后的值
+                df[resolved_column] = cleaned[parse_mask].values
+            elif on_parse_failure == "set_null":
+                # 解析失败的设为空
                 df[resolved_column] = cleaned
+            else:
+                # keep_original: 保留原值
+                # 清洗成功的用新值，失败的保留原值
+                df.loc[parse_mask, resolved_column] = cleaned[parse_mask].values
 
             if self.options.get("log_details", False):
                 print(f"  清洗列: {resolved_column}")
+                if on_parse_failure == "drop_row":
+                    failed_count = (~parse_mask).sum()
+                    if failed_count > 0:
+                        print(f"    删除解析失败的行: {failed_count} 行")
 
         # 保存结果
         output_path.parent.mkdir(parents=True, exist_ok=True)

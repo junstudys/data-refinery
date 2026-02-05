@@ -2,8 +2,8 @@ date_cleaning:
   enabled: true
 
   # 输出格式配置
-  output_format: "%Y-%m-%d %H:%M:%S"  # 完整格式
-  output_format_date_only: "%Y-%m-%d"  # 仅日期格式（用于无时间的日期）
+  output_format: "%Y-%m-%d %H:%M:%S" # 完整格式
+  output_format_date_only: "%Y-%m-%d" # 仅日期格式（用于无时间的日期）
 
   # 日期字段识别
   date_fields:
@@ -17,7 +17,7 @@ date_cleaning:
         - date
         - datetime
         - 日期
-      has_time: true  # 是否包含时间部分
+      has_time: true # 是否包含时间部分
 
     - name: 订单日期
       aliases:
@@ -120,7 +120,7 @@ date_cleaning:
   # 清洗选项
   options:
     # 无法解析时的处理方式：keep_original（保留原值）, set_null（设为空）, drop_row（删除行）
-    on_parse_failure: keep_original
+    on_parse_failure: drop_row
     # 是否删除 .0 后缀
     remove_decimal_zero: true
     # 是否输出清洗日志
