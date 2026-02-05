@@ -17,13 +17,15 @@ def clean_date_vectorized_v2(
     result = pd.Series(index=date_series.index, dtype="datetime64[ns]")
     remaining_mask = pd.Series(True, index=date_series.index)
 
-    cleaned = date_series.astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
+    # 清洗：先去除首尾空格，然后去除日期格式中的多余空格（保留时间空格）
+    cleaned = date_series.astype(str).str.strip()
+    # 去除日期部分的空格（如 "2024. 1. 4" -> "2024.1.4"，但保留 "2024-01-02 23:30:31" 中的空格）
+    # 使用正则：在数字后跟点或斜杠后的空格进行替换
+    cleaned = cleaned.str.replace(r"(\d)\.(\s+)(\d)", r"\1.\3", regex=True)
+    cleaned = cleaned.str.replace(r"(\d)/(\s+)(\d)", r"\1/\3", regex=True)
+    cleaned = cleaned.str.replace(r"\.0$", "", regex=True)
 
-    auto_parsed = pd.to_datetime(cleaned, errors="coerce")
-    mask = auto_parsed.notna()
-    result[mask] = auto_parsed[mask]
-    remaining_mask &= ~mask
-
+    # 先处理自定义格式（优先级更高，避免自动解析的错误结果）
     for fmt, pattern in date_formats:
         if not remaining_mask.any():
             break
@@ -36,6 +38,16 @@ def clean_date_vectorized_v2(
                 parsed = pd.to_datetime(cleaned[pattern_mask], format=fmt, errors="coerce")
                 result[pattern_mask] = parsed
             remaining_mask &= ~pattern_mask
+
+    # 对剩余的值进行自动解析（作为后备）
+    if remaining_mask.any():
+        auto_parsed = pd.to_datetime(cleaned[remaining_mask], errors="coerce")
+        auto_success_mask = auto_parsed.notna()
+        if auto_success_mask.any():
+            # 获取原始索引中需要更新的位置
+            update_indices = remaining_mask[remaining_mask].index[auto_success_mask]
+            result[update_indices] = auto_parsed[auto_success_mask]
+            remaining_mask[update_indices] = False
 
     # 备用：如果没有通过配置匹配，尝试纯数字模式
     excel_mask = cleaned.str.match(r"^\d{1,5}$", na=False) & remaining_mask

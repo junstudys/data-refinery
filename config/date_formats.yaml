@@ -35,6 +35,11 @@ date_cleaning:
         - 修改时间
       has_time: true
 
+    - name: 结算日期
+      aliases:
+        - 结算时间
+      has_time: true
+
   # 日期格式解析规则（按优先级）
   # 优先级高的放前面
   parse_formats:
