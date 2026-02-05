@@ -6,7 +6,6 @@
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import pandas as pd
-from datetime import datetime
 
 from utils.date_cleaner import clean_date_vectorized_v2
 
@@ -78,40 +77,64 @@ class DateCleaningProcessor:
 
         on_parse_failure = self.options.get("on_parse_failure", "keep_original")
 
+        # 第一阶段：清洗所有日期字段，记录解析状态
+        field_results = {}
         for field_cfg in field_configs:
             resolved_column = self._resolve_date_column(df, field_cfg)
             if not resolved_column:
                 continue
 
-            # 保存原始值，用于 keep_original 模式
-            original_values = df[resolved_column].copy()
-
             # 执行日期清洗
             cleaned = clean_date_vectorized_v2(df[resolved_column], self.parse_formats)
-
-            # 处理解析失败的行
-            # NaN 值表示解析失败
             parse_mask = pd.notna(cleaned)
 
-            if on_parse_failure == "drop_row":
-                # 删除解析失败的行
-                df = df[parse_mask].copy()
-                # 只保留清洗后的值
-                df[resolved_column] = cleaned[parse_mask].values
-            elif on_parse_failure == "set_null":
-                # 解析失败的设为空
-                df[resolved_column] = cleaned
-            else:
-                # keep_original: 保留原值
-                # 清洗成功的用新值，失败的保留原值
-                df.loc[parse_mask, resolved_column] = cleaned[parse_mask].values
+            field_results[resolved_column] = {
+                'cleaned': cleaned,
+                'parse_mask': parse_mask,
+                'original': df[resolved_column].copy()
+            }
+
+        # 第二阶段：根据 on_parse_failure 模式应用结果
+        if on_parse_failure == "drop_row":
+            # 收集所有字段中解析失败的行的并集
+            rows_to_keep = pd.Series([True] * len(df), index=df.index)
+            for col_name, result in field_results.items():
+                rows_to_keep &= result['parse_mask']
+            dropped_count = (~rows_to_keep).sum()
+
+            # 删除失败的行并应用清洗后的值
+            df = df[rows_to_keep].copy()
+            for col_name, result in field_results.items():
+                # 使用原索引来获取对应的清洗值
+                df[col_name] = result['cleaned'][rows_to_keep].values
 
             if self.options.get("log_details", False):
-                print(f"  清洗列: {resolved_column}")
-                if on_parse_failure == "drop_row":
-                    failed_count = (~parse_mask).sum()
-                    if failed_count > 0:
-                        print(f"    删除解析失败的行: {failed_count} 行")
+                processed_cols = list(field_results.keys())
+                if processed_cols:
+                    print(f"  清洗列: {', '.join(processed_cols)}")
+                    if dropped_count > 0:
+                        print(f"    删除解析失败的行: {dropped_count} 行")
+
+        elif on_parse_failure == "set_null":
+            # 解析失败的设为空
+            for col_name, result in field_results.items():
+                df[col_name] = result['cleaned']
+
+            if self.options.get("log_details", False):
+                processed_cols = list(field_results.keys())
+                if processed_cols:
+                    print(f"  清洗列: {', '.join(processed_cols)}")
+
+        else:  # keep_original
+            # 清洗成功的用新值，失败的保留原值
+            for col_name, result in field_results.items():
+                parse_mask = result['parse_mask']
+                df.loc[parse_mask, col_name] = result['cleaned'][parse_mask].values
+
+            if self.options.get("log_details", False):
+                processed_cols = list(field_results.keys())
+                if processed_cols:
+                    print(f"  清洗列: {', '.join(processed_cols)}")
 
         # 保存结果
         output_path.parent.mkdir(parents=True, exist_ok=True)
