@@ -357,15 +357,21 @@ class DataPipeline:
         processor = DateCleaningProcessor("config/date_formats.yaml")
 
         input_folder = Path(paths.get("result_files", "Result_files"))
-        output_folder = Path(paths.get("date_cleaned_folder", "date_cleaned"))
 
-        # 处理 merge.csv 或整个文件夹
+        # 优先处理 merge_cleaned.csv（order_clean 的输出），否则处理 merge.csv
+        merge_cleaned_file = input_folder / "merge_cleaned.csv"
         merge_file = input_folder / "merge.csv"
-        if merge_file.exists():
+
+        if merge_cleaned_file.exists():
+            # 处理 merge_cleaned.csv 并覆盖原文件
+            processor.process_csv_file(merge_cleaned_file, merge_cleaned_file)
+            self.logger.info(f"日期清洗完成: {merge_cleaned_file}")
+        elif merge_file.exists():
+            # 处理 merge.csv，输出到 date_cleaned 文件夹
+            output_folder = Path(paths.get("date_cleaned_folder", "date_cleaned"))
             output_file = output_folder / "merge.csv"
             output_folder.mkdir(parents=True, exist_ok=True)
             processor.process_csv_file(merge_file, output_file)
             self.logger.info(f"日期清洗完成: {output_file}")
         else:
-            processor.process_folder(str(input_folder), str(output_folder))
-            self.logger.info(f"日期清洗完成，输出到: {output_folder}")
+            self.logger.warning(f"未找到 merge.csv 或 merge_cleaned.csv")
