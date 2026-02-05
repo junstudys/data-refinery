@@ -65,6 +65,7 @@ class DataPipeline:
             ),
             PipelineStep("extract_content", self._step_extract_content, "内容提取"),
             PipelineStep("order_clean", self._step_order_clean, "运单清洗"),
+            PipelineStep("date_clean", self._step_date_clean, "日期清洗", required=False),
         ]
 
     def run(self, from_step: int = 0, to_step: Optional[int] = None) -> None:
@@ -341,3 +342,30 @@ class DataPipeline:
             path=str(Path(paths.get("result_files", "Result_files")) / "merge.csv"),
             config=order_cfg,
         )
+
+    def _step_date_clean(self) -> None:
+        """日期清洗步骤"""
+        from processors.date_cleaner_processor import DateCleaningProcessor
+
+        paths = self.config.get("paths", {})
+        date_cfg = self.config.get("date_cleaning", {})
+
+        if not date_cfg.get("enabled", True):
+            self.logger.info("日期清洗已禁用，跳过")
+            return
+
+        processor = DateCleaningProcessor("config/date_formats.yaml")
+
+        input_folder = Path(paths.get("result_files", "Result_files"))
+        output_folder = Path(paths.get("date_cleaned_folder", "date_cleaned"))
+
+        # 处理 merge.csv 或整个文件夹
+        merge_file = input_folder / "merge.csv"
+        if merge_file.exists():
+            output_file = output_folder / "merge.csv"
+            output_folder.mkdir(parents=True, exist_ok=True)
+            processor.process_csv_file(merge_file, output_file)
+            self.logger.info(f"日期清洗完成: {output_file}")
+        else:
+            processor.process_folder(str(input_folder), str(output_folder))
+            self.logger.info(f"日期清洗完成，输出到: {output_folder}")

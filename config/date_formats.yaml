@@ -1,0 +1,124 @@
+date_cleaning:
+  enabled: true
+
+  # 输出格式配置
+  output_format: "%Y-%m-%d %H:%M:%S"  # 完整格式
+  output_format_date_only: "%Y-%m-%d"  # 仅日期格式（用于无时间的日期）
+
+  # 日期字段识别
+  date_fields:
+    # 字段名称及其别名
+    - name: 创建时间
+      aliases:
+        - 创建时间
+        - creation_time
+        - created_at
+        - 时间
+        - date
+        - datetime
+        - 日期
+      has_time: true  # 是否包含时间部分
+
+    - name: 订单日期
+      aliases:
+        - 订单日期
+        - order_date
+        - 下单日期
+        - date
+      has_time: false
+
+    - name: 更新时间
+      aliases:
+        - 更新时间
+        - update_time
+        - updated_at
+        - 修改时间
+      has_time: true
+
+  # 日期格式解析规则（按优先级）
+  # 优先级高的放前面
+  parse_formats:
+    # 格式名称
+    - name: excel_serial
+      # strptime 格式（用于解析）
+      strptime_format: null
+      # 正则表达式匹配模式
+      regex_pattern: "^\\d{1,5}(\\.0)?$"
+      # 是否为 Excel 序列日期
+      is_excel_serial: true
+      # 描述
+      description: "Excel 序列日期（如 45118, 45119.0）"
+
+    - name: standard_slash
+      strptime_format: "%Y/%m/%d"
+      regex_pattern: "^\\d{4}/\\d{1,2}/\\d{1,2}$"
+      is_excel_serial: false
+      description: "斜杠分隔（如 2020/1/1）"
+
+    - name: compact
+      strptime_format: "%Y%m%d"
+      regex_pattern: "^\\d{8}$"
+      is_excel_serial: false
+      description: "紧凑格式（如 20200123）"
+
+    - name: dot_separated
+      strptime_format: "%Y.%m.%d"
+      regex_pattern: "^\\d{4}\\.\\d{1,2}\\.\\d{1,2}$"
+      is_excel_serial: false
+      description: "点分隔（如 2020.1.24）"
+
+    - name: chinese_year_month_day
+      strptime_format: "%Y年%m月%d日"
+      regex_pattern: "^\\d{4}年\\d{1,2}月\\d{1,2}日$"
+      is_excel_serial: false
+      description: "中文年月日（如 2024年1月2日）"
+
+    - name: chinese_year_month_hao
+      strptime_format: "%Y年%m月%d号"
+      regex_pattern: "^\\d{4}年\\d{1,2}月\\d{1,2}号$"
+      is_excel_serial: false
+      description: "中文年月号（如 2024年1月2号）"
+
+    - name: chinese_year_month
+      strptime_format: "%Y年%m月"
+      regex_pattern: "^\\d{4}年\\d{1,2}月$"
+      is_excel_serial: false
+      description: "中文年月（如 2023年2月）"
+
+    - name: iso_datetime
+      strptime_format: "%Y-%m-%d %H:%M:%S"
+      regex_pattern: "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$"
+      is_excel_serial: false
+      description: "ISO 日期时间（如 2023-01-02 23:30:31）"
+
+    - name: compact_year_month
+      strptime_format: "%Y%m"
+      regex_pattern: "^\\d{6}$"
+      is_excel_serial: false
+      description: "紧凑年月（如 202301）"
+
+    - name: dash_year_month
+      strptime_format: "%Y-%m"
+      regex_pattern: "^\\d{4}-\\d{1,2}$"
+      is_excel_serial: false
+      description: "横杠年月（如 2023-01）"
+
+    - name: iso_date
+      strptime_format: "%Y-%m-%d"
+      regex_pattern: "^\\d{4}-\\d{1,2}-\\d{1,2}$"
+      is_excel_serial: false
+      description: "ISO 日期（如 2023-01-02）"
+
+  # 自动解析配置（在自定义格式之前尝试）
+  auto_parse_first: true
+
+  # 清洗选项
+  options:
+    # 无法解析时的处理方式：keep_original（保留原值）, set_null（设为空）, drop_row（删除行）
+    on_parse_failure: keep_original
+    # 是否删除 .0 后缀
+    remove_decimal_zero: true
+    # 是否输出清洗日志
+    log_details: true
+    # 输出模式：replace（替换原列）, add_column（新增清洗后的列）
+    output_mode: replace
