@@ -6,7 +6,8 @@ DataRefinery 用于批量处理结构不一致、质量参差的 Excel/CSV 数�
 2. 表头识别与标准化
 3. 字段提取与聚合统计
 4. 字段替换、内容抽取、字段清洗
-5. 对异常值/公式文本进行预处理与审计
+5. 日期格式识别与统一清洗（支持多种日期格式）
+6. 对异常值/公式文本进行预处理与审计
 
 适用场景：异构表格清洗、批量字段抽取、跨来源数据标准化。
 
@@ -54,6 +55,9 @@ python cli.py extract-content --columns "单号,客户名称" --merge
 
 # 字段清洗
 python cli.py field-clean
+
+# 日期清洗
+python cli.py date-clean
 ```
 
 ---
@@ -71,6 +75,7 @@ paths:
   result_files: Result_files
   tmp_find_header_row: mid_files/tmp_find_header_row
   tmp_field_replace: mid_files/tmp_field_replace
+  date_cleaned_folder: date_cleaned
 ```
 
 ### 2. 失败补救与重跑
@@ -119,13 +124,45 @@ order_clean:
   fields:
     - name: 运单号
       aliases: [运单号, 单号]
-      min_length: 12
+      min_length: 6
       max_length: 18
       allow_chinese: false
       allowed_pattern: "^[A-Za-z0-9]+$"
 ```
 
-### 6. 人工确认继续
+### 6. 日期清洗（多种格式支持）
+配置文件：`config/date_formats.yaml`
+
+支持的日期格式：
+- Excel 序列日期（45118, 45119.0）
+- 点分隔格式（2024.1.4）
+- 斜杠分隔（2024/1/4）
+- ISO 日期（2024-01-04）
+- 紧凑格式（20240104）
+- 中文格式（2024年1月4日、2024年1月4号、2024年1月）
+
+```yaml
+date_cleaning:
+  enabled: true
+
+  # 日期字段识别
+  date_fields:
+    - name: 创建时间
+      aliases: [创建时间, creation_time, 时间, date]
+      has_time: true
+
+    - name: 结算日期
+      aliases: [结算日期, 结算时间]
+      has_time: false
+
+  # 清洗选项
+  options:
+    # 无法解析时的处理方式：keep_original（保留原值）, set_null（设为空）, drop_row（删除行）
+    on_parse_failure: keep_original
+    log_details: true
+```
+
+### 7. 人工确认继续
 ```yaml
 pipeline:
   manual_continue_after_repair: true
@@ -138,6 +175,7 @@ pipeline:
 - 日志文件：`logs/pipeline.log`
 - 失败清单：`mid_files/failed_xlsx.csv`
 - 预处理审计：`logs/excel_error_audit.csv`
+- 日期清洗结果：`Result_files/merge_cleaned.csv` 或 `date_cleaned/merge.csv`
 
 ---
 
