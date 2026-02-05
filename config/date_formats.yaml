@@ -38,7 +38,7 @@ date_cleaning:
     - name: 结算日期
       aliases:
         - 结算时间
-      has_time: true
+      has_time: false
 
   # 日期格式解析规则（按优先级）
   # 优先级高的放前面
