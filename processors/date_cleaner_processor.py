@@ -55,9 +55,7 @@ class DateCleaningProcessor:
         self, df: pd.DataFrame, field_cfg: DateFieldConfig
     ) -> Optional[str]:
         """解析日期列名"""
-        column_lookup = {
-            self._normalize_column_name(col): col for col in df.columns
-        }
+        column_lookup = {self._normalize_column_name(col): col for col in df.columns}
         candidates = [field_cfg.name] + [
             a for a in field_cfg.aliases if a != field_cfg.name
         ]
@@ -67,13 +65,36 @@ class DateCleaningProcessor:
                 return column_lookup[normalized]
         return None
 
-    def process_csv_file(self, file_path: Path, output_path: Path) -> None:
+    def process_csv_file(
+        self,
+        file_path: Path,
+        output_path: Path,
+        columns: Optional[List[str]] = None,
+    ) -> bool:
         """处理单个 CSV 文件"""
         df = pd.read_csv(file_path, dtype=str)
 
-        # 获取日期字段配置
         date_fields_cfg = self.date_cleaning_cfg.get("date_fields", [])
-        field_configs = [DateFieldConfig(cfg) for cfg in date_fields_cfg]
+        if columns:
+            column_lookup = {
+                self._normalize_column_name(col): col for col in df.columns
+            }
+            resolved_columns = []
+            for column in columns:
+                normalized = self._normalize_column_name(column)
+                if normalized in column_lookup:
+                    resolved_columns.append(column_lookup[normalized])
+                else:
+                    print(f"列不存在: {column}")
+            if not resolved_columns:
+                print("未找到可清洗的日期列")
+                return False
+            field_configs = [
+                DateFieldConfig({"name": name, "aliases": [], "has_time": True})
+                for name in resolved_columns
+            ]
+        else:
+            field_configs = [DateFieldConfig(cfg) for cfg in date_fields_cfg]
 
         on_parse_failure = self.options.get("on_parse_failure", "keep_original")
 
@@ -89,9 +110,9 @@ class DateCleaningProcessor:
             parse_mask = pd.notna(cleaned)
 
             field_results[resolved_column] = {
-                'cleaned': cleaned,
-                'parse_mask': parse_mask,
-                'original': df[resolved_column].copy()
+                "cleaned": cleaned,
+                "parse_mask": parse_mask,
+                "original": df[resolved_column].copy(),
             }
 
         # 第二阶段：根据 on_parse_failure 模式应用结果
@@ -99,14 +120,14 @@ class DateCleaningProcessor:
             # 收集所有字段中解析失败的行的并集
             rows_to_keep = pd.Series([True] * len(df), index=df.index)
             for col_name, result in field_results.items():
-                rows_to_keep &= result['parse_mask']
+                rows_to_keep &= result["parse_mask"]
             dropped_count = (~rows_to_keep).sum()
 
             # 删除失败的行并应用清洗后的值
             df = df[rows_to_keep].copy()
             for col_name, result in field_results.items():
                 # 使用原索引来获取对应的清洗值
-                df[col_name] = result['cleaned'][rows_to_keep].values
+                df[col_name] = result["cleaned"][rows_to_keep].values
 
             if self.options.get("log_details", False):
                 processed_cols = list(field_results.keys())
@@ -118,7 +139,7 @@ class DateCleaningProcessor:
         elif on_parse_failure == "set_null":
             # 解析失败的设为空
             for col_name, result in field_results.items():
-                df[col_name] = result['cleaned']
+                df[col_name] = result["cleaned"]
 
             if self.options.get("log_details", False):
                 processed_cols = list(field_results.keys())
@@ -128,8 +149,8 @@ class DateCleaningProcessor:
         else:  # keep_original
             # 清洗成功的用新值，失败的保留原值
             for col_name, result in field_results.items():
-                parse_mask = result['parse_mask']
-                df.loc[parse_mask, col_name] = result['cleaned'][parse_mask].values
+                parse_mask = result["parse_mask"]
+                df.loc[parse_mask, col_name] = result["cleaned"][parse_mask].values
 
             if self.options.get("log_details", False):
                 processed_cols = list(field_results.keys())
@@ -141,8 +162,11 @@ class DateCleaningProcessor:
         df.to_csv(output_path, index=False)
         if self.options.get("log_details", False):
             print(f"  保存到: {output_path}")
+        return True
 
-    def process_folder(self, input_folder: str, output_folder: str) -> None:
+    def process_folder(
+        self, input_folder: str, output_folder: str, columns: Optional[List[str]] = None
+    ) -> None:
         """批量处理文件夹中的 CSV 文件"""
         input_path = Path(input_folder)
         output_path = Path(output_folder)
@@ -156,13 +180,16 @@ class DateCleaningProcessor:
         for csv_file in csv_files:
             output_file = output_path / csv_file.name
             print(f"处理文件: {csv_file.name}")
-            self.process_csv_file(csv_file, output_file)
+            self.process_csv_file(csv_file, output_file, columns=columns)
 
         print(f"共处理 {len(csv_files)} 个文件")
 
 
 def clean_date_files(
-    input_path: str, output_path: str, config_path: str = "config/date_formats.yaml"
+    input_path: str,
+    output_path: str,
+    config_path: str = "config/date_formats.yaml",
+    columns: Optional[List[str]] = None,
 ) -> None:
     """
     清洗日期字段的便捷函数
@@ -180,9 +207,9 @@ def clean_date_files(
     if input_p.is_file() and input_p.suffix.lower() == ".csv":
         # 处理单个文件
         output_p.parent.mkdir(parents=True, exist_ok=True)
-        processor.process_csv_file(input_p, output_p)
+        processor.process_csv_file(input_p, output_p, columns=columns)
     elif input_p.is_dir():
         # 处理文件夹
-        processor.process_folder(str(input_p), str(output_p))
+        processor.process_folder(str(input_p), str(output_p), columns=columns)
     else:
         print(f"无效的输入路径: {input_path}")

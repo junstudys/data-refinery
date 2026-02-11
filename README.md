@@ -58,6 +58,9 @@ python cli.py field-clean
 
 # 日期清洗
 python cli.py date-clean
+
+# 日期清洗（指定字段，覆盖配置）
+python cli.py date-clean --columns "创建时间,结算日期"
 ```
 
 ---
@@ -75,7 +78,6 @@ paths:
   result_files: Result_files
   tmp_find_header_row: mid_files/tmp_find_header_row
   tmp_field_replace: mid_files/tmp_field_replace
-  date_cleaned_folder: date_cleaned
 ```
 
 ### 2. 失败补救与重跑
@@ -133,6 +135,14 @@ order_clean:
 ### 6. 日期清洗（多种格式支持）
 配置文件：`config/date_formats.yaml`
 
+#### 使用方式
+- 默认清洗：
+  - `python cli.py date-clean`
+  - 优先处理 `Result_files/merge_cleaned.csv`，不存在时使用 `Result_files/merge.csv` 生成 `merge_cleaned.csv`
+- 指定字段（覆盖配置）：
+  - `python cli.py date-clean --columns "创建时间,结算日期"`
+  - 仅清洗传入的列名（严格匹配 CSV 列名，不使用别名）
+
 支持的日期格式：
 - Excel 序列日期（45118, 45119.0）
 - 点分隔格式（2024.1.4）
@@ -175,7 +185,7 @@ pipeline:
 - 日志文件：`logs/pipeline.log`
 - 失败清单：`mid_files/failed_xlsx.csv`
 - 预处理审计：`logs/excel_error_audit.csv`
-- 日期清洗结果：`Result_files/merge_cleaned.csv` 或 `date_cleaned/merge.csv`
+- 日期清洗结果：`Result_files/merge_cleaned.csv`
 
 ---
 

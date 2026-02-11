@@ -8,6 +8,7 @@ import yaml
 
 from core.pipeline import DataPipeline
 from processors.content_extractor import extract_content
+from processors.date_cleaner_processor import DateCleaningProcessor
 from processors.field_aggregator import array_agg_optimized
 from processors.field_cleaner import clean_csv_files
 from processors.field_extractor import extract_fields
@@ -58,6 +59,8 @@ def run() -> None:
     extract_parser.add_argument("--merge", action="store_true", help="合并输出")
 
     subparsers.add_parser("field-clean", help="字段清洗")
+    date_parser = subparsers.add_parser("date-clean", help="日期清洗")
+    date_parser.add_argument("--columns", help="字段列表，支持中英文逗号分隔")
 
     args = parser.parse_args()
     config = _load_config(args.config)
@@ -200,6 +203,38 @@ def run() -> None:
             path=str(Path(paths.get("result_files", "Result_files")) / "merge.csv"),
             config=order_cfg,
         )
+        return
+
+    if command == "date-clean":
+        date_cfg = config.get("date_cleaning", {})
+        if not date_cfg.get("enabled", True):
+            print("日期清洗已禁用，跳过")
+            return
+
+        config_path = date_cfg.get("config_file", "config/date_formats.yaml")
+        processor = DateCleaningProcessor(config_path)
+        override_columns = _split_columns(args.columns) if args.columns else []
+
+        input_folder = Path(paths.get("result_files", "Result_files"))
+
+        merge_cleaned_file = input_folder / "merge_cleaned.csv"
+        merge_file = input_folder / "merge.csv"
+
+        if merge_cleaned_file.exists():
+            processed = processor.process_csv_file(
+                merge_cleaned_file, merge_cleaned_file, columns=override_columns
+            )
+            if processed:
+                print(f"日期清洗完成: {merge_cleaned_file}")
+        elif merge_file.exists():
+            output_file = input_folder / "merge_cleaned.csv"
+            processed = processor.process_csv_file(
+                merge_file, output_file, columns=override_columns
+            )
+            if processed:
+                print(f"日期清洗完成: {output_file}")
+        else:
+            print("未找到 merge.csv 或 merge_cleaned.csv")
         return
 
     parser.print_help()

@@ -65,7 +65,9 @@ class DataPipeline:
             ),
             PipelineStep("extract_content", self._step_extract_content, "内容提取"),
             PipelineStep("order_clean", self._step_order_clean, "运单清洗"),
-            PipelineStep("date_clean", self._step_date_clean, "日期清洗", required=False),
+            PipelineStep(
+                "date_clean", self._step_date_clean, "日期清洗", required=False
+            ),
         ]
 
     def run(self, from_step: int = 0, to_step: Optional[int] = None) -> None:
@@ -354,7 +356,9 @@ class DataPipeline:
             self.logger.info("日期清洗已禁用，跳过")
             return
 
-        processor = DateCleaningProcessor("config/date_formats.yaml")
+        config_path = date_cfg.get("config_file", "config/date_formats.yaml")
+        processor = DateCleaningProcessor(config_path)
+        columns_cfg = date_cfg.get("columns", [])
 
         input_folder = Path(paths.get("result_files", "Result_files"))
 
@@ -364,14 +368,17 @@ class DataPipeline:
 
         if merge_cleaned_file.exists():
             # 处理 merge_cleaned.csv 并覆盖原文件
-            processor.process_csv_file(merge_cleaned_file, merge_cleaned_file)
-            self.logger.info(f"日期清洗完成: {merge_cleaned_file}")
+            processed = processor.process_csv_file(
+                merge_cleaned_file, merge_cleaned_file, columns=columns_cfg
+            )
+            if processed:
+                self.logger.info(f"日期清洗完成: {merge_cleaned_file}")
         elif merge_file.exists():
-            # 处理 merge.csv，输出到 date_cleaned 文件夹
-            output_folder = Path(paths.get("date_cleaned_folder", "date_cleaned"))
-            output_file = output_folder / "merge.csv"
-            output_folder.mkdir(parents=True, exist_ok=True)
-            processor.process_csv_file(merge_file, output_file)
-            self.logger.info(f"日期清洗完成: {output_file}")
+            output_file = input_folder / "merge_cleaned.csv"
+            processed = processor.process_csv_file(
+                merge_file, output_file, columns=columns_cfg
+            )
+            if processed:
+                self.logger.info(f"日期清洗完成: {output_file}")
         else:
-            self.logger.warning(f"未找到 merge.csv 或 merge_cleaned.csv")
+            self.logger.warning("未找到 merge.csv 或 merge_cleaned.csv")

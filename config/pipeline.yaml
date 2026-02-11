@@ -13,7 +13,6 @@ paths:
   result_files: Result_files
   tmp_find_header_row: mid_files/tmp_find_header_row
   tmp_field_replace: mid_files/tmp_field_replace
-  date_cleaned_folder: date_cleaned
 
 dir_policies:
   excel_folder: false
@@ -23,7 +22,6 @@ dir_policies:
   result_files: true
   tmp_find_header_row: true
   tmp_field_replace: true
-  date_cleaned_folder: true
 
 field_detection:
   keywords:

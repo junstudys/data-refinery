@@ -4,6 +4,7 @@
 
 import pytest
 import pandas as pd
+from pathlib import Path
 from processors.date_cleaner_processor import (
     DateCleaningProcessor,
     DateFieldConfig,
@@ -89,11 +90,13 @@ date_cleaning:
 def sample_csv(tmp_path):
     """创建测试 CSV 文件"""
     csv_file = tmp_path / "test.csv"
-    df = pd.DataFrame({
-        "创建时间": ["2024年1月2日", "45118", "2020/1/1", "20200123", "2020.1.24"],
-        "订单日期": ["2023年2月", "45119.0", "invalid", "2024/3/15", "20251231"],
-        "其他列": ["a", "b", "c", "d", "e"]
-    })
+    df = pd.DataFrame(
+        {
+            "创建时间": ["2024年1月2日", "45118", "2020/1/1", "20200123", "2020.1.24"],
+            "订单日期": ["2023年2月", "45119.0", "invalid", "2024/3/15", "20251231"],
+            "其他列": ["a", "b", "c", "d", "e"],
+        }
+    )
     df.to_csv(csv_file, index=False)
     return csv_file
 
@@ -132,32 +135,30 @@ class TestDateCleaningProcessor:
     def test_resolve_date_column(self, sample_config):
         """测试日期列名解析"""
         processor = DateCleaningProcessor(sample_config)
-        df = pd.DataFrame({
-            "创建时间": ["2024年1月2日", "45118"],
-            "其他列": ["a", "b"]
-        })
+        df = pd.DataFrame({"创建时间": ["2024年1月2日", "45118"], "其他列": ["a", "b"]})
 
-        field_cfg = DateFieldConfig({
-            "name": "创建时间",
-            "aliases": ["time", "date"],
-            "has_time": True,
-        })
+        field_cfg = DateFieldConfig(
+            {
+                "name": "创建时间",
+                "aliases": ["time", "date"],
+                "has_time": True,
+            }
+        )
         resolved = processor._resolve_date_column(df, field_cfg)
         assert resolved == "创建时间"
 
     def test_resolve_date_column_by_alias(self, sample_config):
         """测试通过别名解析日期列"""
         processor = DateCleaningProcessor(sample_config)
-        df = pd.DataFrame({
-            "time": ["2024年1月2日", "45118"],
-            "其他列": ["a", "b"]
-        })
+        df = pd.DataFrame({"time": ["2024年1月2日", "45118"], "其他列": ["a", "b"]})
 
-        field_cfg = DateFieldConfig({
-            "name": "创建时间",
-            "aliases": ["time", "date"],
-            "has_time": True,
-        })
+        field_cfg = DateFieldConfig(
+            {
+                "name": "创建时间",
+                "aliases": ["time", "date"],
+                "has_time": True,
+            }
+        )
         resolved = processor._resolve_date_column(df, field_cfg)
         assert resolved == "time"
 
@@ -175,6 +176,21 @@ class TestDateCleaningProcessor:
         result_df = pd.read_csv(output_file, dtype=str)
         assert "2024-01-02" in result_df["创建时间"].iloc[0]
         assert "2023" in result_df["创建时间"].iloc[1]
+
+    def test_process_csv_file_with_columns_override(
+        self, sample_config, sample_csv, tmp_path
+    ):
+        processor = DateCleaningProcessor(sample_config)
+        output_file = tmp_path / "output.csv"
+
+        processor.process_csv_file(
+            sample_csv, output_file, columns=["订单日期", "不存在"]
+        )
+
+        result_df = pd.read_csv(output_file, dtype=str)
+        assert "订单日期" in result_df.columns
+        assert "创建时间" in result_df.columns
+        assert "2023" in result_df["订单日期"].iloc[0]
 
     def test_process_folder(self, sample_config, sample_csv, tmp_path):
         """测试处理文件夹"""
@@ -247,6 +263,46 @@ class TestDateCleaningUtility:
         formats = [("%Y-%m-%d %H:%M:%S", r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$")]
         result = clean_date_vectorized_v2(dates, formats)
         assert "2023-01-02 23:30:31" in result.iloc[0]
+
+
+class TestDateCleaningOutputModes:
+    def test_set_null_on_parse_failure(self, sample_config, tmp_path):
+        config_content = Path(sample_config).read_text(encoding="utf-8")
+        config_content = config_content.replace(
+            "on_parse_failure: keep_original", "on_parse_failure: set_null"
+        )
+        config_file = tmp_path / "date_formats.yaml"
+        config_file.write_text(config_content, encoding="utf-8")
+
+        processor = DateCleaningProcessor(str(config_file))
+        input_csv = tmp_path / "input.csv"
+        df = pd.DataFrame({"创建时间": ["invalid", "2024/1/1"]})
+        df.to_csv(input_csv, index=False)
+
+        output_csv = tmp_path / "output.csv"
+        processor.process_csv_file(input_csv, output_csv)
+
+        result_df = pd.read_csv(output_csv, dtype=str)
+        assert pd.isna(result_df.loc[0, "创建时间"])
+
+    def test_drop_row_on_parse_failure(self, sample_config, tmp_path):
+        config_content = Path(sample_config).read_text(encoding="utf-8")
+        config_content = config_content.replace(
+            "on_parse_failure: keep_original", "on_parse_failure: drop_row"
+        )
+        config_file = tmp_path / "date_formats.yaml"
+        config_file.write_text(config_content, encoding="utf-8")
+
+        processor = DateCleaningProcessor(str(config_file))
+        input_csv = tmp_path / "input.csv"
+        df = pd.DataFrame({"创建时间": ["invalid", "2024/1/1"]})
+        df.to_csv(input_csv, index=False)
+
+        output_csv = tmp_path / "output.csv"
+        processor.process_csv_file(input_csv, output_csv)
+
+        result_df = pd.read_csv(output_csv, dtype=str)
+        assert len(result_df) == 1
 
 
 class TestCleanDateFiles:
