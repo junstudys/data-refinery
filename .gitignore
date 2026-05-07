@@ -25,8 +25,8 @@ Thumbs.db
 htmlcov/
 
 # Data files
-*.xlsx
-*.xls
+# *.xlsx
+# *.xls
 *.csv
 *.json
 mid_files/
