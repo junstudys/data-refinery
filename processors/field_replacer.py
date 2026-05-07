@@ -24,14 +24,15 @@ def replace_fields(
     new_fields = dict_df["new_field"].unique()
 
     for filename in os.listdir(orig_folder):
-        new_filename = f"{filename.rsplit('.', 1)[0]}.{filename.rsplit('.', 1)[1]}"
+        full_path = os.path.join(orig_folder, filename)
+        if not os.path.isfile(full_path):
+            continue
 
         if filename.endswith(".csv"):
-            full_path = os.path.join(orig_folder, filename)
             if os.path.getsize(full_path) == 0:
                 print(f"Ignored empty file {filename}")
                 continue
-            df = pd.read_csv(full_path)
+            df = pd.read_csv(full_path, low_memory=False)
             for new_field in new_fields:
                 for _, row in dict_df[dict_df["new_field"] == new_field].iterrows():
                     if row["old_field"] in df.columns:
@@ -39,12 +40,12 @@ def replace_fields(
                             columns={row["old_field"]: row["new_field"]}, inplace=True
                         )
                         break
-            df.to_csv(os.path.join(result_folder, new_filename), index=False)
+            df.to_csv(os.path.join(result_folder, filename), index=False)
 
         elif filename.endswith(".xlsx"):
             book = load_workbook(os.path.join(orig_folder, filename))
             writer = pd.ExcelWriter(
-                os.path.join(result_folder, new_filename), engine="openpyxl"
+                os.path.join(result_folder, filename), engine="openpyxl"
             )
             writer.book = book
             for sheet in book.sheetnames:
