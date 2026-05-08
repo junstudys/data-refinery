@@ -21,46 +21,57 @@ git clone https://github.com/junstudys/data-refinery
 cd data-refinery
 ```
 
-### 2. 一键运行全流程
+### 2. 环境准备（uv）
+本项目使用 [uv](https://docs.astral.sh/uv/) 管理依赖与运行脚本，依赖锁定在 `uv.lock`。
+
 ```bash
-python cli.py pipeline
+# 安装 uv（macOS / Linux）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 同步依赖（首次运行 uv run 时也会自动同步）
+uv sync
 ```
 
-### 3. 单步执行（可按需组合）
+### 3. 一键运行全流程
+```bash
+uv run cli.py pipeline
+```
+
+### 4. 单步执行（可按需组合）
 ```bash
 # Excel 转 CSV
-python cli.py xlsx-to-csv
+uv run cli.py xlsx-to-csv
 
 # 仅重跑失败文件
-python cli.py xlsx-to-csv --mode failed
+uv run cli.py xlsx-to-csv --mode failed
 
 # 启用 Excel 预处理（公式文本/错误审计）
-python cli.py xlsx-to-csv --preprocess
+uv run cli.py xlsx-to-csv --preprocess
 
 # 平铺文件
-python cli.py flatten
+uv run cli.py flatten
 
 # 表头识别
-python cli.py find-header
+uv run cli.py find-header
 
 # 字段提取与聚合
-python cli.py extract-fields
-python cli.py array-agg
+uv run cli.py extract-fields
+uv run cli.py array-agg
 
 # 字段替换
-python cli.py field-replace
+uv run cli.py field-replace
 
 # 内容提取
-python cli.py extract-content --columns "单号,客户名称" --merge
+uv run cli.py extract-content --columns "单号,客户名称" --merge
 
 # 字段清洗
-python cli.py field-clean
+uv run cli.py field-clean
 
 # 日期清洗
-python cli.py date-clean
+uv run cli.py date-clean
 
 # 日期清洗（指定字段，覆盖配置）
-python cli.py date-clean --columns "创建时间,结算日期"
+uv run cli.py date-clean --columns "创建时间,结算日期"
 ```
 
 ---
@@ -137,10 +148,10 @@ order_clean:
 
 #### 使用方式
 - 默认清洗：
-  - `python cli.py date-clean`
+  - `uv run cli.py date-clean`
   - 优先处理 `Result_files/merge_cleaned.csv`，不存在时使用 `Result_files/merge.csv` 生成 `merge_cleaned.csv`
 - 指定字段（覆盖配置）：
-  - `python cli.py date-clean --columns "创建时间,结算日期"`
+  - `uv run cli.py date-clean --columns "创建时间,结算日期"`
   - 仅清洗传入的列名（严格匹配 CSV 列名，不使用别名）
 
 支持的日期格式：
