@@ -28,6 +28,9 @@ cd data-refinery
 # 安装 uv（macOS / Linux）
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
+# 安装 uv（Windows，PowerShell）
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
 # 同步依赖（首次运行 uv run 时也会自动同步）
 uv sync
 ```
