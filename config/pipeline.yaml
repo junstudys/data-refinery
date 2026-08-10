@@ -5,6 +5,8 @@ pipeline:
   manual_continue_after_convert: true
   manual_continue_after_dict_edit: true
 
+workspace_root: .
+
 paths:
   excel_folder: excel_folder
   excel_preprocess_folder: excel_preprocessed
@@ -56,7 +58,7 @@ order_clean:
         - 物流编号
         - ship_id
       min_length: 6
-      max_length: 18
+      max_length: 32
       allow_chinese: false
       allowed_pattern: "^[A-Za-z0-9]+$"
 

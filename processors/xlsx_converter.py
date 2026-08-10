@@ -37,6 +37,7 @@ def _convert_single_file(
             dateformat="%Y-%m-%d %H:%M:%S",
             exclude_hidden_sheets=True,
             skip_hidden_rows=False,
+            ignore_formats=["float"],
         ).convert(str(output_folder), sheetid=0)
 
         workbook_name = excel_file.stem

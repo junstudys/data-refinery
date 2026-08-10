@@ -27,6 +27,18 @@ def test_resolve_order_column_aliases():
     assert resolved == "单号"
 
 
+def test_clean_order_only_strips_integer_like_decimal_suffix():
+    df = pd.DataFrame(
+        {
+            "运单号": ["3511111100002011122.0", "A.0"],
+            "备注": ["keep", "NA"],
+        }
+    )
+    cleaned = clean_order_vectorized(df, "运单号", min_length=1, max_length=32, remove_chinese=False)
+    assert cleaned["运单号"].tolist() == ["3511111100002011122", "A.0"]
+    assert cleaned["备注"].tolist() == ["keep", "NA"]
+
+
 def test_clean_csv_files_add_column_mode(tmp_path: Path):
     file_path = tmp_path / "merge.csv"
     pd.DataFrame({"单号": ["123456789012", "abc"]}).to_csv(file_path, index=False)

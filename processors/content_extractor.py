@@ -1,7 +1,11 @@
 import os
+from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
+
+from utils.path_manager import ensure_dir
+from utils.text_fidelity import read_business_csv, read_business_excel
 
 
 def _normalize_column(name: str) -> str:
@@ -21,22 +25,18 @@ def extract_content(
     columns: List[str],
     merge: bool = True,
     clear_output: bool = True,
+    workspace_root: str | os.PathLike[str] | None = None,
 ) -> None:
-    if not os.path.isdir(folder_path):
+    input_path = Path(folder_path).resolve()
+    result_dir = Path(result_path)
+    result_resolved = result_dir.resolve(strict=False)
+    if input_path == result_resolved or input_path.is_relative_to(result_resolved):
+        raise ValueError("输入目录不能与输出目录相同，也不能位于输出目录内")
+    if not input_path.is_dir():
         raise FileNotFoundError(f"输入目录不存在: {folder_path}")
 
     files = os.listdir(folder_path)
-
-    if not os.path.exists(result_path):
-        os.makedirs(result_path)
-    elif clear_output:
-        for filename in os.listdir(result_path):
-            file_path = os.path.join(result_path, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-            except Exception as exc:
-                print(f"Failed to delete {file_path}. Reason: {exc}")
+    ensure_dir(result_dir, clear=clear_output, workspace_root=workspace_root)
 
     dfs = []
     for file in files:
@@ -45,7 +45,7 @@ def extract_content(
             if os.path.getsize(file_path) == 0:
                 continue
             if file.endswith(".csv"):
-                df = pd.read_csv(file_path)
+                df = read_business_csv(file_path)
                 column_lookup = _build_column_lookup(list(df.columns))
                 for col in columns:
                     normalized = _normalize_column(col)
@@ -61,7 +61,6 @@ def extract_content(
                 df = df[columns + ["source"]] if "source" in df.columns else df[columns]
                 dfs.append(df)
                 if not merge:
-                    df = _normalize_int_columns(df)
                     df.to_csv(
                         os.path.join(result_path, file[:-4] + "_new.csv"), index=False
                     )
@@ -69,7 +68,7 @@ def extract_content(
             elif file.endswith(".xlsx"):
                 xls = pd.ExcelFile(file_path)
                 for sheet_name in xls.sheet_names:
-                    df = pd.read_excel(xls, sheet_name)
+                    df = read_business_excel(file_path, sheet_name=sheet_name)
                     if df.empty:
                         continue
                     column_lookup = _build_column_lookup(list(df.columns))
@@ -91,7 +90,6 @@ def extract_content(
                     )
                     dfs.append(df)
                     if not merge:
-                        df = _normalize_int_columns(df)
                         df.to_csv(
                             os.path.join(
                                 result_path, file[:-5] + "_" + sheet_name + "_new.csv"
@@ -105,12 +103,4 @@ def extract_content(
             empty_df.to_csv(os.path.join(result_path, "merge.csv"), index=False)
             return
         final_df = pd.concat(dfs, ignore_index=True)
-        final_df = _normalize_int_columns(final_df)
         final_df.to_csv(os.path.join(result_path, "merge.csv"), index=False)
-
-
-def _normalize_int_columns(df: pd.DataFrame) -> pd.DataFrame:
-    for col in df.columns:
-        if (df[col].dtype == "float64") and (df[col] % 1 == 0).all():
-            df[col] = df[col].astype(int)
-    return df

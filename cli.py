@@ -169,6 +169,7 @@ def run() -> None:
                 "tmp_find_header_row", "mid_files/tmp_find_header_row"
             ),
             result_folder=paths.get("tmp_field_replace", "mid_files/tmp_field_replace"),
+            workspace_root=config.get("workspace_root"),
         )
         return
 
@@ -194,6 +195,7 @@ def run() -> None:
             columns=[c.strip() for c in columns_cfg if c.strip()],
             merge=merge_flag,
             clear_output=bool(config.get("dir_policies", {}).get("result_files", True)),
+            workspace_root=config.get("workspace_root"),
         )
         return
 

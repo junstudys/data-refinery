@@ -1,8 +1,11 @@
 import os
-from shutil import rmtree
+from pathlib import Path
 
 import pandas as pd
 from openpyxl import load_workbook
+
+from utils.path_manager import ensure_dir
+from utils.text_fidelity import read_business_csv, read_business_excel
 
 
 def replace_fields(
@@ -11,15 +14,12 @@ def replace_fields(
     orig_folder: str = "mid_files/tmp_find_header_row",
     result_folder: str = "mid_files/tmp_field_replace",
     clear_output: bool = False,
+    workspace_root: str | os.PathLike[str] | None = None,
 ) -> None:
     dict_df = pd.read_excel(dict_path, sheet_name=sheet_name)
     dict_df = dict_df.sort_values(by=["new_field", "priority"], ascending=True)
 
-    if not os.path.exists(result_folder):
-        os.mkdir(result_folder)
-    elif clear_output:
-        rmtree(result_folder)
-        os.mkdir(result_folder)
+    ensure_dir(Path(result_folder), clear=clear_output, workspace_root=workspace_root)
 
     new_fields = dict_df["new_field"].unique()
 
@@ -32,7 +32,7 @@ def replace_fields(
             if os.path.getsize(full_path) == 0:
                 print(f"Ignored empty file {filename}")
                 continue
-            df = pd.read_csv(full_path, low_memory=False)
+            df = read_business_csv(full_path)
             for new_field in new_fields:
                 for _, row in dict_df[dict_df["new_field"] == new_field].iterrows():
                     if row["old_field"] in df.columns:
@@ -52,7 +52,7 @@ def replace_fields(
                 if book[sheet].calculate_dimension() == "A1":
                     print(f"Ignored empty sheet {sheet} in {filename}")
                     continue
-                df = pd.read_excel(
+                df = read_business_excel(
                     os.path.join(orig_folder, filename), sheet_name=sheet
                 )
                 for new_field in new_fields:

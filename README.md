@@ -84,6 +84,8 @@ uv run cli.py date-clean --columns "创建时间,结算日期"
 
 ### 1. 路径配置
 ```yaml
+workspace_root: .
+
 paths:
   excel_folder: excel_folder
   excel_preprocess_folder: excel_preprocessed
@@ -93,6 +95,10 @@ paths:
   tmp_find_header_row: mid_files/tmp_find_header_row
   tmp_field_replace: mid_files/tmp_field_replace
 ```
+
+所有由流水线创建、写入或清理的目录都必须是 `workspace_root` 的严格子目录。程序会拒绝工作空间根目录本身、父目录、工作空间外路径、普通文件及包含符号链接的路径，避免配置错误造成递归误删。`dir_policies` 中只有显式设为 `true` 的目录才会在运行前清理，未配置的策略默认不清理。
+
+> 输入与输出不要配置成同一路径。需要使用其他位置时，应把 `workspace_root` 设置为一个专用工作目录，再将各输出目录配置在其下。
 
 ### 2. 失败补救与重跑
 ```yaml
@@ -141,12 +147,25 @@ order_clean:
     - name: 运单号
       aliases: [运单号, 单号]
       min_length: 6
-      max_length: 18
+      max_length: 32
       allow_chinese: false
       allowed_pattern: "^[A-Za-z0-9]+$"
 ```
 
-### 6. 日期清洗（多种格式支持）
+### 6. 长数字与标识字段保真
+
+字段替换、字段统计和内容合并阶段会将业务数据按文本读取，避免 pandas 把整列推断为浮点数。运单号、订单号、银行卡号、客户号等长标识中的前导零和完整数字将按 CSV 原始文本保留，不会由本项目转换为科学计数法。
+
+注意 Excel 本身的限制：
+
+- 精确长标识应在源 Excel 中设置为“文本”并以文本方式录入；
+- 如果单元格按“常规/数值”保存，Excel 对超长数字通常只有约 15 位有效数字精度；
+- Excel 已经舍入的末位无法由本项目恢复；本项目只能保证不再进行额外的 float 转换；
+- 若 CSV 原始文本是完整数字，但双击后 Excel 显示为科学计数法，应通过“数据 → 从文本/CSV”导入并将该列指定为文本。
+
+默认运单字段长度上限为 32，可在 `order_clean.fields` 中按具体业务字段覆盖。
+
+### 7. 日期清洗（多种格式支持）
 配置文件：`config/date_formats.yaml`
 
 #### 使用方式
@@ -186,7 +205,7 @@ date_cleaning:
     log_details: true
 ```
 
-### 7. 人工确认继续
+### 8. 人工确认继续
 ```yaml
 pipeline:
   manual_continue_after_repair: true

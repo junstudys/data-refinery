@@ -3,6 +3,11 @@ from typing import Dict, List
 
 import pandas as pd
 
+from utils.text_fidelity import DEFAULT_IDENTIFIER_MAX_LENGTH
+
+
+DEFAULT_ORDER_MIN_LENGTH = 12
+
 
 @dataclass
 class QualityReport:
@@ -24,10 +29,11 @@ class DataQualityChecker:
         duplicate_rows = df.duplicated().sum()
 
         if self.order_column in df.columns:
-            order_series = df[self.order_column].astype(str)
+            order_series = df[self.order_column].astype("string")
             invalid = (
-                (order_series.str.len() < 12)
-                | (order_series.str.len() > 18)
+                order_series.isna()
+                | (order_series.str.len() < DEFAULT_ORDER_MIN_LENGTH)
+                | (order_series.str.len() > DEFAULT_IDENTIFIER_MAX_LENGTH)
                 | order_series.str.contains(r"[\u4e00-\u9fff]", na=False)
             ).sum()
         else:

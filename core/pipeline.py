@@ -73,6 +73,7 @@ class DataPipeline:
     def run(self, from_step: int = 0, to_step: Optional[int] = None) -> None:
         paths = self.config.get("paths", {})
         dir_policies = self.config.get("dir_policies", {})
+        workspace_root = self.config.get("workspace_root")
         xlsx_cfg = self.config.get("xlsx_to_csv", {})
         retry_mode = xlsx_cfg.get("retry_mode", "all")
         failed_list_path = Path(
@@ -91,7 +92,7 @@ class DataPipeline:
             dir_policies["tmp_field_replace"] = False
             dir_policies["result_files"] = False
         if paths:
-            apply_dir_policies(paths, dir_policies)
+            apply_dir_policies(paths, dir_policies, workspace_root=workspace_root)
         end = to_step or len(self.steps)
         for i, step in enumerate(self.steps[from_step:end], start=from_step):
             if self.stop_pipeline:
@@ -118,6 +119,7 @@ class DataPipeline:
 
     def _step_xlsx_to_csv(self) -> None:
         paths = self.config.get("paths", {})
+        workspace_root = self.config.get("workspace_root")
         perf = self.config.get("performance", {})
         xlsx_cfg = self.config.get("xlsx_to_csv", {})
         excel_folder = Path(paths.get("excel_folder", "excel_folder"))
@@ -151,7 +153,9 @@ class DataPipeline:
                 if cleanup_cfg.get("enabled", True) and cleanup_cfg.get(
                     "remove_failed_output_folders", True
                 ):
-                    remove_failed_output_folders(results_folder, failed_files)
+                    remove_failed_output_folders(
+                        results_folder, failed_files, workspace_root=workspace_root
+                    )
                 if preprocess_cfg.get("fallback_on_failed", False):
                     preprocess_excel_files(
                         (excel_folder / f for f in failed_files),
@@ -192,7 +196,9 @@ class DataPipeline:
                         if cleanup_cfg.get("enabled", True) and cleanup_cfg.get(
                             "remove_failed_output_folders", True
                         ):
-                            remove_failed_output_folders(results_folder, retry_failed)
+                            remove_failed_output_folders(
+                                results_folder, retry_failed, workspace_root=workspace_root
+                            )
                         self.stop_pipeline = True
                     else:
                         if self.manual_continue_after_repair:
@@ -311,6 +317,7 @@ class DataPipeline:
             result_folder=self.config.get("paths", {}).get(
                 "tmp_field_replace", "mid_files/tmp_field_replace"
             ),
+            workspace_root=self.config.get("workspace_root"),
         )
 
     def _step_extract_content(self) -> None:
@@ -335,6 +342,7 @@ class DataPipeline:
             columns=[c.strip() for c in columns_cfg if c.strip()],
             merge=merge_flag,
             clear_output=clear_output,
+            workspace_root=self.config.get("workspace_root"),
         )
 
     def _step_order_clean(self) -> None:

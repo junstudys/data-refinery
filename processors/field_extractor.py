@@ -4,6 +4,8 @@ from typing import List, Tuple
 
 import pandas as pd
 
+from utils.text_fidelity import read_business_csv, read_business_excel
+
 
 def is_file_empty(file_path: str) -> bool:
     with open(file_path, "r") as read_obj:
@@ -18,13 +20,13 @@ def read_files(file_path: str) -> List[Tuple[str, str, str]]:
             if is_file_empty(full_path):
                 print(f"File {filename} is empty. Skipping...")
                 continue
-            df = pd.read_csv(full_path)
+            df = read_business_csv(full_path)
             for column in df.columns:
                 files_info.append((filename, "csv", column))
         elif filename.endswith(".xlsx") or filename.endswith(".xls"):
             xls = pd.ExcelFile(full_path)
             for sheet_name in xls.sheet_names:
-                df = pd.read_excel(xls, sheet_name)
+                df = read_business_excel(full_path, sheet_name=sheet_name)
                 if df.empty:
                     print(f"Sheet {sheet_name} in {filename} is empty. Skipping...")
                     continue

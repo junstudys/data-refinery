@@ -3,11 +3,18 @@ from typing import Dict, List
 
 import pandas as pd
 
+from utils.text_fidelity import DEFAULT_IDENTIFIER_MAX_LENGTH
+
 
 def _vectorized_clean(series: pd.Series) -> pd.Series:
-    cleaned = series.astype(str).str.strip()
-    cleaned = cleaned.str.replace(r"\.0$", "", regex=True)
-    return cleaned
+    """Trim configured identifier values without coercing missing values.
+
+    A terminal ``.0`` is removed only from a token that is explicitly an
+    integer-like decimal (digits followed by exactly ``.0``). Other business
+    text such as ``A.0`` remains unchanged.
+    """
+    cleaned = series.astype("string").fillna("").str.strip()
+    return cleaned.str.replace(r"^\d+\.0$", lambda match: match.group(0)[:-2], regex=True)
 
 
 def _normalize_column(name: str) -> str:
@@ -29,7 +36,7 @@ def _build_rule(rule_cfg: Dict) -> Dict:
         "name": rule_cfg.get("name", ""),
         "aliases": rule_cfg.get("aliases", []),
         "min_length": rule_cfg.get("min_length", 1),
-        "max_length": rule_cfg.get("max_length", 999),
+        "max_length": rule_cfg.get("max_length", DEFAULT_IDENTIFIER_MAX_LENGTH),
         "allow_chinese": bool(rule_cfg.get("allow_chinese", True)),
         "allowed_pattern": rule_cfg.get("allowed_pattern"),
     }
@@ -86,7 +93,7 @@ def clean_order_vectorized(
     df: pd.DataFrame,
     column: str,
     min_length: int = 12,
-    max_length: int = 18,
+    max_length: int = DEFAULT_IDENTIFIER_MAX_LENGTH,
     remove_chinese: bool = True,
 ) -> pd.DataFrame:
     series = _vectorized_clean(df[column])

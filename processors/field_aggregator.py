@@ -1,10 +1,12 @@
 import pandas as pd
 
+from utils.text_fidelity import read_business_csv
+
 
 def array_agg_optimized(
     input_file: str, dimension_column: str, array_column: str, output_file: str
 ) -> None:
-    data_df = pd.read_csv(input_file)
+    data_df = read_business_csv(input_file)
     if dimension_column not in data_df.columns or array_column not in data_df.columns:
         raise ValueError("Specified columns are not found in the input file.")
 
